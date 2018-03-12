@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<style>
+		canvas{border:1px solid gray;}
+		
+		#audioSection {display: none;}
+	</style>
+	<title>Yak Runner</title>
+	<link rel="icon" type="image/png" href="resources/favicon.png">
+</head>
+<body>
+	<canvas>
+		Boop.
+	</canvas>
+	<section id="audioSection">
+		<audio id="backgroundAudio" src="media/menu.mp3" controls loop></audio>
+	</section>
+	
+	<!--Web Font Loader-->
+	<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+	<script>
+	  WebFont.load({
+	    google: {
+	      families: ['Lobster']
+	    }
+	  });
+	</script>
+
+	<script src='js/helper.js'></script>
+	<script src='js/loader.js'></script>
+	<script src='js/input.js'></script>
+	<script src='js/audio.js'></script>
+	<script src='js/main.js'></script>
+</body>
+</html>
