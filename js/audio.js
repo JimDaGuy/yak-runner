@@ -15,8 +15,20 @@ app.audio = (function(){
 		backgroundAudio.play();
     }
     
+    function setBackgroundAudio(bgPath, vol){
+        backgroundAudio.src = bgPath;
+        backgroundAudio.volume = vol;
+        backgroundAudio.play();
+    }
+    
+    function changeVolume(vol) {
+        backgroundAudio.volume = vol;
+    }
+    
     //Returning functions/variables to be used in 'app'
     return {
         init: init,
+        setBackgroundAudio: setBackgroundAudio,
+        changeVolume: changeVolume,
     };
 })();

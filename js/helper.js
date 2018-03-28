@@ -5,7 +5,7 @@
 
 // returns mouse position in local coordinate system of element
 function getMouse(e){
-	var mouse = {} 
+	var mouse = {} // make an object
 	mouse.x = e.pageX - e.target.offsetLeft;
 	mouse.y = e.pageY - e.target.offsetTop;
 	return mouse;
@@ -33,4 +33,9 @@ constrained between min and max (inclusive)
 */
 function clamp(val, min, max){
 	return Math.max(min, Math.min(max, val));
+}
+
+//Return random int between the min and max (inclusive)
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
