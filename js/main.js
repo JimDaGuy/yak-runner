@@ -15,7 +15,7 @@ app.main = {
     animationID: 0,
     previousUpdateTime: 0,
     imageObjects: [],
-    imageSources: ["resources/menuyak2.png"],
+    imageSources: ["resources/menuyak.png", "resources/yakrunbg.png", "resources/yakspritesheet.png"],
     
     //Universal Colors
     groundColor: '#765230',
@@ -72,18 +72,22 @@ app.main = {
     menuCreditsHovered: false,
     
     //In-Game Variables
-    yakPlayerWidth: 50,
+    yakPlayerWidth: 75,
     yakPlayerHeight: 50,
     currentPlayerState: undefined,
+    bgSand: undefined,
+    yakSheet: undefined,
+    yakTPF: 4,  //Ticks per frame
+    yakTickCounter: 0,
+    yakSpriteIndex: 0,
     
-    yakPositionX: 50,
+    yakPositionX: 250,
     yakPositionY: 500,
     yakPlayerCurrentSprite: undefined,
     yakXSpeed: 250,  //Ground will move left at 60 pixels per second
     yakYSpeed: 0,
-    yakYAccel: -50,
-    jumpAccel: 50,
-    gravity: 50,
+    yakYSpeed: 50,
+    yakYAccel: -150,
     
     terrainObjects: [],
     botLevelHeight: 25,
@@ -121,6 +125,8 @@ app.main = {
     	  	    if(numLoadedImages >= app.main.imageSources.length) {
     	  	        //Set all image objects and call initial update
     	  	        app.main.menuYak = app.main.imageObjects[0];
+    	  	        app.main.bgSand = app.main.imageObjects[1];
+    	  	        app.main.yakSheet = app.main.imageObjects[2];
                     app.main.update(); 
                 }
     	    };
@@ -150,6 +156,8 @@ app.main = {
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             
+            this.ctx.drawImage( this.bgSand, 0, 0);
+            
             //Draw Particles
             this.createParticles(dt);
             this.moveParticles(dt, 140);
@@ -165,10 +173,11 @@ app.main = {
             this.drawTerrain(this.ctx);
             
             //Process Keyboard Input
-            this.processInput();
+            this.processKeyboardInput();
             
-            //Update Yak Position and Sprite, draw yak to the screen
+            //Update Yak Position and Sprite, 
             this.updateYak(dt);
+            //draw yak to the screen
             this.drawYak(this.ctx);
             
             //Draw HUD last
@@ -177,7 +186,21 @@ app.main = {
         
         //Game Paused
         if(this.currentGameState == this.GAME_STATE.PAUSED) {
-            //Redraw game screen from initial pause so we can draw a pause screen over it
+            //Redraw Game Screen without updating
+            this.ctx.clearRect(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
+            this.ctx.fillStyle = this.skyColor;
+            this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
+            this.ctx.drawImage( this.bgSand, 0, 0);
+            this.drawParticles(this.ctx);
+            this.drawTerrain(this.ctx);
+            this.drawYak(this.ctx);
+            this.drawHUD(this.ctx, dt);
+            
+            //Draw Pause Screen on top
+            this.drawPauseScreen(this.ctx);
+            
+            //Check Input
+            this.processKeyboardInput();
         }
         
     },
@@ -396,19 +419,45 @@ app.main = {
         ctx.restore();
     },
     
+    drawPauseScreen: function(ctx, e) {
+        ctx.save();
+            
+        //Draw Pause Overlay
+        this.ctx.fillStyle = "gray";
+        this.ctx.globalAlpha = .7;
+        this.ctx.fillRect(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
+        this.ctx.globalAlpha = 1;
+            
+            
+        
+        
+        ctx.restore();
+    },
+    
     drawYak: function(ctx) {
         ctx.save();
-        //Commented out until the spritesheet animation is implemented
-        /*
-        ctx.drawImage(this.yakPlayerCurrentSprite, 
-        this.yakPositionX - (this.yakPlayerWidth / 2),
-        this.yakPositionY - (this.yakPositionY / 2))
-        */
+        var xOffset, yOffset;
+        if(this.yakSpriteIndex > 7) {
+            xOffset = (this.yakSpriteIndex - 8) * this.yakPlayerWidth;
+            yOffset = 50;
+        }
+        else {
+            xOffset = this.yakSpriteIndex * this.yakPlayerWidth;
+            yOffset = 0;
+        }
+        
+        ctx.drawImage(this.yakSheet,
+        xOffset, yOffset, this.yakPlayerWidth, this.yakPlayerHeight,
+        this.yakPositionX - (this.yakPlayerWidth / 2), 
+        this.yakPositionY - (this.yakPlayerHeight / 2),
+        this.yakPlayerWidth, this.yakPlayerHeight);
+        
+        //console.dir(this.yakSpriteIndex);
         
         //We'll use a red box for now
-        ctx.fillStyle = "red";
-        ctx.fillRect(this.yakPositionX - (this.yakPlayerWidth / 2),
-        this.yakPositionY - (this.yakPlayerHeight / 2), this.yakPlayerWidth, this.yakPlayerHeight);
+        //ctx.fillStyle = "red";
+        //ctx.fillRect(this.yakPositionX - (this.yakPlayerWidth / 2),
+        //this.yakPositionY - (this.yakPlayerHeight / 2), this.yakPlayerWidth, this.yakPlayerHeight);
         
         ctx.restore();
     },
@@ -420,8 +469,8 @@ app.main = {
         if(lastTerrain.right() <= this.CANVAS_WIDTH - 20) {
         //Create a terrain object with random-ish width and location
             var newTerrainWidth = getRandomInt(4, 9) * 50; //200-450 pixels wide
-            var terrainOffset = getRandomInt(40, 70);
-            //New terrain object is between 60 and 90 pixels apart from last terrain object
+            var terrainOffset = getRandomInt(140, 170);
+            //New terrain object is between 160 and 190 pixels apart from last terrain object
             var newTerrainX = this.CANVAS_WIDTH + (newTerrainWidth / 2) + terrainOffset;
           
             //Set new terrain height within 50px on either side of the last terrain block
@@ -438,20 +487,30 @@ app.main = {
         }
     },
     
-    processInput: function() {
-        if(keys.down[keys.KEYBOARD.KEY_SPACE])
-            this.yakYSpeed += 20;
-        /*
-        if(this.currentPlayerState = this.PLAYER_STATE.RUNNING) {
-            //If player presses space while running, they will jump
-            if(keys.down[keys.KEYBOARD.KEY_SPACE]) {
-                //Set player state to jumping
-                this.currentPlayerState = this.PLAYER_STATE.JUMPING;
-                //Set player y speed
-                //this.yakYAccel = this.jumpAccel;
+    processKeyboardInput: function() {
+        
+        //In-Game Key Controls
+        if(this.currentGameState == this.GAME_STATE.INGAME) {
+            if(keys.down[keys.KEYBOARD.KEY_P])
+            {
+                this.currentGameState = this.GAME_STATE.PAUSED;
+                //this.currentGameState = this.GAME_STATE.PAUSED;
+            }
+            
+            if(this.currentPlayerState == this.PLAYER_STATE.RUNNING) {
+                //If player presses space while running, they will jump
+                if(keys.down[keys.KEYBOARD.KEY_SPACE]) {
+                    //Set player state to jumping
+                    this.currentPlayerState = this.PLAYER_STATE.JUMPING;
+                    //Set jumping frame
+                    this.yakSpriteIndex = 8;
+                    this.yakTickCounter = 0;
+                }
             }
         }
-        */
+        
+            
+        
     },
     
     setInitialTerrain: function() {
@@ -504,64 +563,88 @@ app.main = {
     },
     
     updateYak: function(dt) {
-        //Yak y acceleration will decrease due to gravity
-        this.yakYAccel -= this.gravity * dt;    
-        //Set bottom cap for speed and acceleration (Needs tweaking/rework)
-            
         //Update Yak Player State
-        if(this.currentPlayerState == this.PLAYER_STATE.JUMPING && this.yakYAccel <= 0)
+        if(this.currentPlayerState == this.PLAYER_STATE.JUMPING && this.yakYAccel <= 0) {
             this.currentPlayerState = this.PLAYER_STATE.FALLING;
+            this.yakSpriteIndex = 17;
+        }
+        
+        //Increase sprite index every tick-per-frame unit
+        if(this.yakTickCounter % this.yakTPF == 0)
+            this.yakSpriteIndex++;
+            
+        //Reset Jumping loop
+         if(this.yakSpriteIndex > 17) {
+            if(this.PLAYER_STATE == this.PLAYER_STATE.JUMPING) {
+                this.yakSpriteIndex = 8;
+                this.yakTickCounter = 0;
+            }
+            else {
+                this.yakSpriteIndex = 0;
+                this.yakTickCounter = 0;
+            }
+        }
+        
+        //Reset running loop
+        if(this.yakSpriteIndex > 7 && this.PLAYER_STATE == this.PLAYER_STATE.RUNNING) {
+            this.yakSpriteIndex = 0;
+            this.yakTickCounter = 0;
+        }
+        
+        //Increment Tick Counter
+        this.yakTickCounter++;
         
         //Add Acceleration to speed
-        this.yakYSpeed += this.yakYAccel * dt;
+        //Acceleration is negative, making speed negative
+        this.yakYSpeed += (this.yakYAccel * dt);
+        
+        if(this.yakYSpeed <= -50)
+            this.yakYSpeed = -50;
         
         //Set potential new x and y coordinates for the yak
         var potentialX = this.yakPositionX;
-        var potentialY = this.yakPositionY - (this.yakYSpeed * dt);
+        var potentialY = this.yakPositionY - (this.yakYSpeed * dt); //Speed is negative so we need to subtract it
         var yakTop = potentialY - (this.yakPlayerHeight / 2);
         var yakBot = potentialY + (this.yakPlayerHeight / 2);
         var yakLeft = potentialX - (this.yakPlayerWidth / 2);
         var yakRight = potentialX + (this.yakPlayerWidth / 2);
-         
-        //console.dir(this.yakPositionY);
         
+        //Check each terrain block for collision
         for(var i = 0; i < this.terrainObjects.length; i++) {
+             //Horizontal Collision Check
+            if(yakRight > this.terrainObjects[i].left() &&
+            yakLeft < this.terrainObjects[i].left() &&
+            ((yakBot > this.terrainObjects[i].top() && yakTop < this.terrainObjects[i].top()) || 
+            (yakTop < this.terrainObjects[i].bottom() && yakBot > this.terrainObjects[i].bottom()))
+            )
+            {
+                this.yakPositionX = this.terrainObjects[i].left() - (this.yakPlayerWidth / 2);
+            }
+            else {
+                this.yakPositionX = potentialX;
+            }
+            
             //Vertical Collision Checks
             if(yakRight > this.terrainObjects[i].left() &&
             yakLeft < this.terrainObjects[i].right()) {
                 
                 //Ground Collision
-                if(yakBot >= this.terrainObjects[i].top() &&
-                yakTop <= this.terrainObjects[i].top() &&
-                this.yakPositionY + (this.yakPlayerHeight / 2) < this.terrainObjects[i].top()) {
-                    console.dir("gc");
-                    this.yakPositionY = this.terrainObjects[i].top() - (this.yakPlayerHeight / 2) - 1;
+                if(yakBot > this.terrainObjects[i].top() &&
+                yakTop < this.terrainObjects[i].top()) {
+                    this.yakPositionY = this.terrainObjects[i].top() - (this.yakPlayerHeight / 2);
+                    this.yakYSpeed = 0; //Sets Y velocity to 0 because it is on the ground
                     this.currentPlayerState = this.PLAYER_STATE.RUNNING;
                 }
                 //Ceiling Collision
-                else if(yakTop <= this.terrainObjects[i].bottom() &&
-                yakBot >= this.terrainObjects[i].bottom() &&
-                this.yakPositionY - (this.yakPlayerHeight / 2) > this.terrainObjects[i].bottom() &&
-                this.yakYSpeed > 0){
-                    this.yakPositionY = this.terrainObjects[i].bottom() + (this.yakPlayerHeight / 2) + 2; //Set outside of box with 2px buffer
+                else if(yakTop < this.terrainObjects[i].bottom() &&
+                yakBot > this.terrainObjects[i].bottom()) {
+                    this.yakPositionY = this.terrainObjects[i].bottom() + (this.yakPlayerHeight / 2); //Set outside of box with 2px buffer
                     this.currentPlayerState = this.PLAYER_STATE.FALLING;
-                    console.dir("cc");
                 }
                 // If no vertical collsion occurs, set the y value
                 else
                     this.yakPositionY = potentialY;
             }
-            
-            //Horizontal Collision Check
-            if(yakRight >= this.terrainObjects[i].left() &&
-            yakLeft <= this.terrainObjects[i].left() &&
-            ((yakBot >= this.terrainObjects[i].top() && yakTop <= this.terrainObjects[i].top()) || 
-            (yakTop <= this.terrainObjects[i].bottom() && yakBot >= this.terrainObjects[i].bottom()))
-            )
-            {
-                //this.yakPositionX = this.terrainObjects[i].left() - (this.yakPlayerWidth / 2);
-            }
-            
         }
     },
 };

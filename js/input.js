@@ -7,6 +7,7 @@ var keys = {};
 
 keys.KEYBOARD = Object.freeze({
    "KEY_SPACE": 32, 
+   "KEY_P": 80,
 });
 
 //Key daemon for checking keyboard input

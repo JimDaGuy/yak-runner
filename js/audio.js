@@ -12,13 +12,13 @@ app.audio = (function(){
     function init(){
         backgroundAudio = document.querySelector("#backgroundAudio");
 		backgroundAudio.volume=0.10;
-		backgroundAudio.play();
+		//backgroundAudio.play();
     }
     
     function setBackgroundAudio(bgPath, vol){
         backgroundAudio.src = bgPath;
         backgroundAudio.volume = vol;
-        backgroundAudio.play();
+        //backgroundAudio.play();
     }
     
     function changeVolume(vol) {
