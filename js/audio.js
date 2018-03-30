@@ -7,6 +7,7 @@ var app = app || {};
 app.audio = (function(){
     //Variables
     var backgroundAudio = undefined;
+    var effectSounds = ["scoreGrab.wav"];
     
     //Functions
     function init(){
@@ -25,10 +26,18 @@ app.audio = (function(){
         backgroundAudio.volume = vol;
     }
     
+    function playEffect(effectNum){
+        var effectSound = document.createElement('audio');
+        effectSound.volume = 0.3;
+		effectSound.src = "media/" + effectSounds[effectNum];
+		effectSound.play();
+    }
+    
     //Returning functions/variables to be used in 'app'
     return {
         init: init,
         setBackgroundAudio: setBackgroundAudio,
         changeVolume: changeVolume,
+        playEffect: playEffect,
     };
 })();
