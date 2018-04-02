@@ -8,18 +8,24 @@ app.audio = (function(){
     //Variables
     var backgroundAudio = undefined;
     var effectSounds = ["scoreGrab.wav", "score1.wav", "score2.wav", "score3.wav"];
+    var effectsMuted = false;
+    var musicMuted = false;
     
     //Functions
     function init(){
         backgroundAudio = document.querySelector("#backgroundAudio");
 		backgroundAudio.volume=0.10;
-		backgroundAudio.play();
+		
+		if(!musicMuted)
+		    backgroundAudio.play();
     }
     
     function setBackgroundAudio(bgPath, vol){
         backgroundAudio.src = bgPath;
         backgroundAudio.volume = vol;
-        backgroundAudio.play();
+        
+        if(!musicMuted)
+            backgroundAudio.play();
     }
     
     function changeVolume(vol) {
@@ -30,7 +36,25 @@ app.audio = (function(){
         var effectSound = document.createElement('audio');
         effectSound.volume = 0.3;
 		effectSound.src = "media/" + effectSounds[effectNum];
-		effectSound.play();
+		
+		if(!effectsMuted)
+		    effectSound.play();
+    }
+    
+    function toggleBG() {
+        musicMuted = !musicMuted;
+        if(musicMuted)
+            backgroundAudio.pause();
+        else {
+            //Set audio to menu music if it isn't already
+            if(backgroundAudio.src != "media/menu.mp3")
+                setBackgroundAudio("media/menu.mp3", .3);
+            backgroundAudio.play();
+        }
+    }
+    
+    function toggleSFX() {
+        effectsMuted = !effectsMuted;
     }
     
     //Returning functions/variables to be used in 'app'
@@ -39,5 +63,7 @@ app.audio = (function(){
         setBackgroundAudio: setBackgroundAudio,
         changeVolume: changeVolume,
         playEffect: playEffect,
+        toggleBG: toggleBG,
+        toggleSFX: toggleSFX,
     };
 })();

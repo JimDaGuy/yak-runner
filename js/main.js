@@ -87,6 +87,21 @@ app.main = {
     pauseButtonHeight: 75,
     pauseButtonLineWidth: 4,
     
+    settingSFXHovered: false,
+    settingSFXToggled: true,
+    settingBGHovered: false,
+    settingBGToggled: true,
+    
+    settingOnColor: 'green',
+    settingOnFill: '#71FA96',
+    settingOffFill: "red",
+    settingOffColor: "pink",
+    
+    settingActiveColor: 'white',
+    settingActiveFill: '#C0FEF8',
+    settingButtonWidth: 125,
+    settingButtonHeight: 125,
+    
     //In-Game Variables
     yakPlayerWidth: 75,
     yakPlayerHeight: 50,
@@ -369,12 +384,51 @@ app.main = {
     		this.ctx.fillStyle = "#6FC374";
         	this.ctx.fillText("Settings", 20, 20);
     	
-            //Draw Instructions
+            //Draw Settings
+            
+            //Toggle-BG Button
+            if(this.settingBGToggled) {
+                this.ctx.fillStyle = this.settingOnFill;
+                this.ctx.strokeStyle = this.settingOnColor;
+            }
+            else {
+                this.ctx.fillStyle = this.settingOffFill;
+                this.ctx.strokeStyle = this.settingOffColor;
+            }
+            
+            if( this.settingBGHovered) {
+        	    this.ctx.fillStyle = this.settingActiveFill;
+        	    this.ctx.strokeStyle = this.settingActiveColor;
+        	}
+        	
+        	this.ctx.fillRect( (this.CANVAS_WIDTH * .5) - (this.ctx.lineWidth / 2), this.CANVAS_HEIGHT * .5, this.settingButtonWidth, this.settingButtonHeight);
+        	this.ctx.strokeRect( (this.CANVAS_WIDTH * .5) - (this.ctx.lineWidth / 2), this.CANVAS_HEIGHT * .5 , this.settingButtonWidth, this.settingButtonHeight);
+            
+            //Toggle-SFX Button
+            if(this.settingSFXToggled) {
+                this.ctx.fillStyle = this.settingOnFill;
+                this.ctx.strokeStyle = this.settingOnColor;
+            }
+            else {
+                this.ctx.fillStyle = this.settingOffFill;
+                this.ctx.strokeStyle = this.settingOffColor;
+            }
+            
+            if( this.settingSFXHovered) {
+        	    this.ctx.fillStyle = this.settingActiveFill;
+        	    this.ctx.strokeStyle = this.settingActiveColor;
+        	}
+        	
+        	this.ctx.fillRect( (this.CANVAS_WIDTH * .75) - (this.ctx.lineWidth / 2), this.CANVAS_HEIGHT * .5, this.settingButtonWidth, this.settingButtonHeight);
+        	this.ctx.strokeRect( (this.CANVAS_WIDTH * .75) - (this.ctx.lineWidth / 2), this.CANVAS_HEIGHT * .5 , this.settingButtonWidth, this.settingButtonHeight);
+        	
+            
             this.ctx.fillStyle = "#C0FEC4";
             this.ctx.shadowColor = "#6FC374";
             this.ctx.shadowBlur = 10;
             this.ctx.font = "45pt 'Share Tech'";
-            this.ctx.fillText("No settings for PT2", this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .4);
+            this.ctx.fillText("Music", this.CANVAS_WIDTH * .5, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .4);
+            this.ctx.fillText("SFX", this.CANVAS_WIDTH * .75, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .4);
             this.ctx.fillText("Press ESC to return to the menu", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .8, this.CANVAS_WIDTH * .4);
         
             //Process Input
@@ -452,8 +506,6 @@ app.main = {
             
             //Draw Pause Screen on top
             this.drawPauseScreen(this.ctx);
-            
-            
         }
         
         if(this.currentGameState == this.GAME_STATE.DEAD) {
@@ -578,6 +630,18 @@ app.main = {
 		        this.scoreObjects = [];
 	        }
 	    }
+	    
+	    if(this.currentGameState == this.GAME_STATE.SETTINGS) {
+	        if(this.settingBGHovered) {
+	            this.settingBGToggled = !this.settingBGToggled;
+	            app.audio.toggleBG();
+	        }
+	        
+	        if(this.settingSFXHovered) {
+	            this.settingSFXToggled = !this.settingSFXToggled;
+	            app.audio.toggleSFX();
+	        }
+	    }
 		
 		if(this.currentGameState == this.GAME_STATE.DEAD) {
 		    this.currentGameState = this.GAME_STATE.MENU;
@@ -638,6 +702,30 @@ app.main = {
     	    else {
     	        this.menuCreditsHovered = false;
     	    }
+	  }
+	  
+	  if(this.currentGameState == this.GAME_STATE.SETTINGS) {
+	    //Music
+        if(x >= (this.CANVAS_WIDTH * .5) && x <= (this.CANVAS_WIDTH * .5) + this.settingButtonWidth &&
+        y >= (this.CANVAS_HEIGHT * .5) - (this.ctx.lineWidth / 2) && 
+        y <= (this.CANVAS_HEIGHT * .5) + this.settingButtonHeight  + (this.ctx.lineWidth / 2)) {
+            this.settingBGHovered = true;
+    	    return;
+        }
+        else {
+            this.settingBGHovered = false;
+        }
+        
+        //SFX
+        if(x >= this.CANVAS_WIDTH * .75 && x <= (this.CANVAS_WIDTH * .75) + this.settingButtonWidth &&
+        y >= (this.CANVAS_HEIGHT * .5) - (this.ctx.lineWidth / 2) && 
+        y <= (this.CANVAS_HEIGHT * .5) + this.settingButtonHeight  + (this.ctx.lineWidth / 2)) {
+            this.settingSFXHovered = true;
+    	    return;
+        }
+        else {
+            this.settingSFXHovered = false;
+        }
 	  }
 	  
 	  if(this.currentGameState == this.GAME_STATE.PAUSED) {
@@ -969,13 +1057,13 @@ app.main = {
         
         for(var i = 0; i < this.scoreObjects.length; i++) {
             if(this.scoreObjects[i].value == 1) {
-                ctx.fillStyle = "red";
+                ctx.fillStyle = "#2F432E";
             }
             else if(this.scoreObjects[i].value == 2) {
-                ctx.fillStyle = "yellow";
+                ctx.fillStyle = "#71BA6D";
             }
             else if(this.scoreObjects[i].value == 3) {
-                ctx.fillStyle = "green";
+                ctx.fillStyle = "#B9FAB5";
             }
             else
                 ctx.fillStyle = "cyan";
