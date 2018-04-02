@@ -45,8 +45,6 @@ app.main = {
     PLAYER_STATE: Object.freeze({
        RUNNING: 0,
        JUMPING: 1,
-       FALLING: 2,
-       DEAD: 3,
     }),
     
     //Menu Variables
@@ -79,9 +77,15 @@ app.main = {
     menuInstructionsHovered: false,
     menuOptionsHovered: false,
     menuCreditsHovered: false,
-    
     menuCreditsWidth: 75,
     menuCreditsHeight: 75,
+    
+    pauseResumeHovered: false,
+    pauseRestartHovered: false,
+    pauseQuitHovered: false,
+    pauseButtonWidth: 400,
+    pauseButtonHeight: 75,
+    pauseButtonLineWidth: 4,
     
     //In-Game Variables
     yakPlayerWidth: 75,
@@ -108,6 +112,9 @@ app.main = {
     scorePerTerrain: 4,
     scoreWidth: 20,
     scoreHeight: 20,
+    currentScoreBlur: 0,
+    increaseBlur: true,
+    blurIncTimer: 0,
     botLevelHeight: 25,
     topLevelHeight: 225,
     
@@ -127,10 +134,6 @@ app.main = {
         
         //Set initial game state
         this.currentGameState = this.GAME_STATE.MENU; 
-        
-        //Init menu variables
-        
-        //Preload Images
         
         //Setup Events
         this.canvas.onmousemove = this.doMousemove.bind(this);
@@ -226,7 +229,12 @@ app.main = {
         	this.ctx.fillText("Credits", 20, 20);
     	
             //Draw Credits
+            this.ctx.fillStyle = "#C0FEC4";
+            this.ctx.shadowColor = "#6FC374";
+            this.ctx.shadowBlur = 10;
             this.ctx.font = "45pt 'Share Tech'";
+            this.ctx.fillText("Intro and Game Songs by Kevin MacLeod", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .2, this.CANVAS_WIDTH * .5);
+            this.ctx.fillText("Sound Effects from GDC Game Audio Bundle 2016", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .5);
             this.ctx.fillText("Yak Ai File - Kailey Martin", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .6, this.CANVAS_WIDTH * .4);
             this.ctx.fillText("Press ESC to return to the menu", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .8, this.CANVAS_WIDTH * .4);
             
@@ -245,7 +253,7 @@ app.main = {
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             
-            this.ctx.drawImage( this.bgSand, 0, 0);
+            //this.ctx.drawImage( this.bgSand, 0, 0);
             
             this.createParticles(dt);
             
@@ -292,6 +300,9 @@ app.main = {
         	this.ctx.fillText("Instructions", 20, 20);
     	
             //Draw Instructions
+            this.ctx.fillStyle = "#C0FEC4";
+            this.ctx.shadowColor = "#6FC374";
+            this.ctx.shadowBlur = 10;
             this.ctx.font = "45pt 'Share Tech'";
             this.ctx.fillText("For now, T to go up", this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .4);
             this.ctx.fillText("Press P or ESC to Pause the game", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .6, this.CANVAS_WIDTH * .4);
@@ -312,7 +323,7 @@ app.main = {
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             
-            this.ctx.drawImage( this.bgSand, 0, 0);
+            //this.ctx.drawImage( this.bgSand, 0, 0);
             
             this.createParticles(dt);
             
@@ -359,6 +370,9 @@ app.main = {
         	this.ctx.fillText("Settings", 20, 20);
     	
             //Draw Instructions
+            this.ctx.fillStyle = "#C0FEC4";
+            this.ctx.shadowColor = "#6FC374";
+            this.ctx.shadowBlur = 10;
             this.ctx.font = "45pt 'Share Tech'";
             this.ctx.fillText("No settings for PT2", this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .4);
             this.ctx.fillText("Press ESC to return to the menu", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .8, this.CANVAS_WIDTH * .4);
@@ -379,7 +393,7 @@ app.main = {
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             
-            this.ctx.drawImage( this.bgSand, 0, 0);
+            //this.ctx.drawImage( this.bgSand, 0, 0);
             
             this.drawGameCurves(this.ctx);
             
@@ -411,7 +425,7 @@ app.main = {
             this.drawScore(this.ctx);
             
             //Draw HUD last
-            this.drawHUD(this.ctx, dt);
+            this.drawHUD(this.ctx);
             
             //Check if Yak is dead
             this.checkDead();
@@ -427,17 +441,19 @@ app.main = {
             this.drawParticles(this.ctx);
             this.drawTerrain(this.ctx);
             this.drawYak(this.ctx);
-            this.drawHUD(this.ctx, dt);
+            this.drawHUD(this.ctx);
             this.drawScore(this.ctx);
             
             //Change Game Music Volume
             app.audio.changeVolume(.1);
             
+            //Check Input
+            this.processKeyboardInput();
+            
             //Draw Pause Screen on top
             this.drawPauseScreen(this.ctx);
             
-            //Check Input
-            this.processKeyboardInput();
+            
         }
         
         if(this.currentGameState == this.GAME_STATE.DEAD) {
@@ -480,7 +496,6 @@ app.main = {
 	       this.yakPositionY - (this.yakPlayerHeight / 2) > this.CANVAS_HEIGHT ||
 	       this.yakPositionY + (this.yakPlayerWidth / 2) < 0
 	    ) {
-	        this.currentPlayerState = this.PLAYER_STATE.DEAD;
 	        this.currentGameState = this.GAME_STATE.DEAD;
 	    }
 	},
@@ -533,6 +548,35 @@ app.main = {
 		    }
 		    
 			return;
+	    }
+	    
+	    if(this.currentGameState == this.GAME_STATE.PAUSED) {
+	        if(this.pauseResumeHovered) {
+	            this.currentGameState = this.GAME_STATE.INGAME;
+	        }
+	        
+	        if(this.pauseRestartHovered) {
+	            this.currentGameState = this.GAME_STATE.INGAME;
+		        app.audio.setBackgroundAudio("media/ingame.mp3", .3);
+	            this.currentScore = 0;
+		        this.yakPositionX = this.yakInitX;
+		        this.yakPositionY = this.yakInitY;
+		        this.terrainObjects = [];
+		        this.particles = [];
+		        this.scoreObjects = [];
+		        this.setInitialTerrain();
+	        }
+	        
+	        if(this.pauseQuitHovered) {
+	            this.currentGameState = this.GAME_STATE.MENU;
+	            app.audio.setBackgroundAudio("media/menu.mp3", .3);
+	            this.currentScore = 0;
+		        this.yakPositionX = this.yakInitX;
+		        this.yakPositionY = this.yakInitY;
+		        this.terrainObjects = [];
+		        this.particles = [];
+		        this.scoreObjects = [];
+	        }
 	    }
 		
 		if(this.currentGameState == this.GAME_STATE.DEAD) {
@@ -597,7 +641,36 @@ app.main = {
 	  }
 	  
 	  if(this.currentGameState == this.GAME_STATE.PAUSED) {
-	      
+	      //Resume Game
+	      	if(x <= ((this.CANVAS_WIDTH / 2) + (this.pauseButtonWidth / 2)) && x >= ((this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2)) &&
+    	    y >= this.CANVAS_HEIGHT - (this.pauseButtonHeight * 6) - (this.pauseButtonLineWidth / 2) && 
+    	    y <= this.CANVAS_HEIGHT - (this.pauseButtonHeight * 5) + (this.pauseButtonLineWidth / 2)) {
+    	        this.pauseResumeHovered = true;
+    	        return;
+    	    }
+    	    else {
+    	        this.pauseResumeHovered = false;
+    	    }
+    	    //Restart Game
+    	    if(x <= ((this.CANVAS_WIDTH / 2) + (this.pauseButtonWidth / 2)) && x >= ((this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2)) &&
+    	    y >= this.CANVAS_HEIGHT - (this.pauseButtonHeight * 4) - (this.pauseButtonLineWidth / 2) && 
+    	    y <= this.CANVAS_HEIGHT - (this.pauseButtonHeight * 3) + (this.pauseButtonLineWidth / 2)) {
+    	        this.pauseRestartHovered = true;
+    	        return;
+    	    }
+    	    else {
+    	        this.pauseRestartHovered = false;
+    	    }
+    	    //Return to menu
+    	    if(x <= ((this.CANVAS_WIDTH / 2) + (this.pauseButtonWidth / 2)) && x >= ((this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2)) &&
+    	    y >= this.CANVAS_HEIGHT - (this.pauseButtonHeight * 2) - (this.pauseButtonLineWidth / 2) && 
+    	    y <= this.CANVAS_HEIGHT - (this.pauseButtonHeight) + (this.pauseButtonLineWidth / 2)) {
+    	        this.pauseQuitHovered = true;
+    	        return;
+    	    }
+    	    else {
+    	        this.pauseQuitHovered = false;
+    	    }
 	  }
 	},
 	
@@ -688,7 +761,7 @@ app.main = {
 	    ctx.restore();
 	},
     
-    drawHUD: function(ctx, dt) {
+    drawHUD: function(ctx) {
         ctx.save();
         
         ctx.font = "20px Arial";
@@ -698,8 +771,8 @@ app.main = {
         ctx.textAlign = "end";
         ctx.fillText("Score: " + this.currentScore, this.CANVAS_WIDTH - 20, 20);
         
-        ctx.textAlign = "start";
-        ctx.fillText("Dt: " + dt.toFixed(3), 20, 20);
+        //ctx.textAlign = "start";
+        //ctx.fillText("Dt: " + dt.toFixed(3), 20, 20);
         
         ctx.restore();
     },
@@ -709,6 +782,8 @@ app.main = {
         
         //Set terrain drawing styles
         ctx.fillStyle = this.terrainColor;
+        ctx.shadowColor = "#6FC374";
+        ctx.shadowBlur = 20;
         
         //Iterate through every terrain object and draw it
         for(var i = 0; i < this.terrainObjects.length; i++) {
@@ -758,8 +833,10 @@ app.main = {
         //Draw Game Title
         ctx.textAlign = "left";
     	ctx.textBaseline = "top";
+    	ctx.fillStyle = "#C0FEC4";
+        ctx.shadowColor = "#6FC374";
+        ctx.shadowBlur = 10;
     	ctx.font = "90pt 'Lobster'";
-		ctx.fillStyle = "#6FC374";
     	ctx.fillText("Yak Runner", 20, 20);
     	
     	//Draw Menu Buttons
@@ -831,10 +908,58 @@ app.main = {
             
         //Draw Game Title
         this.ctx.textAlign = "center";
-    	this.ctx.textBaseline = "middle";
-    	this.ctx.font = "75pt 'Lobster'";
-    	this.ctx.fillStyle = "red";
-    	this.ctx.fillText("Game Paused", this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT / 2);
+    	this.ctx.textBaseline = "hanging";
+    	this.ctx.font = "60pt 'Share Tech'";
+    	this.ctx.fillStyle = "#C0FEC4";
+        this.ctx.shadowColor = "#6FC374";
+        this.ctx.shadowBlur = 10;
+    	this.ctx.fillText("Game Paused", this.CANVAS_WIDTH / 2, 20);
+        
+        //Draw Menu Buttons
+    	ctx.globalAlpha = .6;
+    	ctx.lineWidth = this.menuButtonLineWidth;
+    	
+    	//Resume Button
+        if( this.pauseResumeHovered) {
+    	    ctx.fillStyle = this.menuButtonActiveFill;
+    	    ctx.strokeStyle = this.menuButtonActiveColor;
+    	} else {
+    	    ctx.fillStyle = this.menuButtonInactiveFill;
+    	    ctx.strokeStyle = this.menuButtonInactiveColor;
+    	}
+    	ctx.fillRect( (this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2) - (ctx.lineWidth / 2), this.CANVAS_HEIGHT - (this.pauseButtonHeight * 6) , this.pauseButtonWidth, this.pauseButtonHeight);
+    	ctx.strokeRect( (this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2), this.CANVAS_HEIGHT - (this.pauseButtonHeight * 6) , this.pauseButtonWidth, this.pauseButtonHeight);
+        
+        //Restart Button
+        if(this.pauseRestartHovered) {
+            ctx.fillStyle = this.menuButtonActiveFill;
+            ctx.strokeStyle = this.menuButtonActiveColor;
+    	} else {
+    	    ctx.fillStyle = this.menuButtonInactiveFill;
+    	    ctx.strokeStyle = this.menuButtonInactiveColor;
+    	}
+    	ctx.fillRect( (this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2) - (ctx.lineWidth / 2), this.CANVAS_HEIGHT - (this.pauseButtonHeight * 4) , this.pauseButtonWidth, this.pauseButtonHeight);
+    	ctx.strokeRect( (this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2), this.CANVAS_HEIGHT - (this.pauseButtonHeight * 4) , this.pauseButtonWidth, this.pauseButtonHeight);
+    	
+        //Return to Menu
+        if(this.pauseQuitHovered) {
+            ctx.fillStyle = this.menuButtonActiveFill;
+            ctx.strokeStyle = this.menuButtonActiveColor;
+    	} else {
+    	    ctx.fillStyle = this.menuButtonInactiveFill;
+    	    ctx.strokeStyle = this.menuButtonInactiveColor;
+    	}
+    	ctx.fillRect( (this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2) - (ctx.lineWidth / 2), this.CANVAS_HEIGHT - (this.pauseButtonHeight * 2) , this.pauseButtonWidth, this.pauseButtonHeight);
+    	ctx.strokeRect( (this.CANVAS_WIDTH / 2) - (this.pauseButtonWidth / 2), this.CANVAS_HEIGHT - (this.pauseButtonHeight * 2) , this.pauseButtonWidth, this.pauseButtonHeight);
+    	
+        //Menu Button Text
+        ctx.textAlign = "center";
+    	ctx.textBaseline = "middle";
+    	ctx.font = "45pt 'Share Tech'";
+        ctx.fillStyle = "#322938"; 
+        ctx.fillText("Resume Run",  this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT - this.pauseButtonHeight * 5.5);
+        ctx.fillText("Restart Run",  this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT - this.pauseButtonHeight * 3.5);
+        ctx.fillText("Quit Run",  this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT - this.pauseButtonHeight * 1.5);
         
         ctx.restore();
     },
@@ -843,17 +968,25 @@ app.main = {
         ctx.save();
         
         for(var i = 0; i < this.scoreObjects.length; i++) {
-            if(this.scoreObjects[i].value == 1)
+            if(this.scoreObjects[i].value == 1) {
                 ctx.fillStyle = "red";
-            else if(this.scoreObjects[i].value == 2)
+            }
+            else if(this.scoreObjects[i].value == 2) {
                 ctx.fillStyle = "yellow";
-            else if(this.scoreObjects[i].value == 3)
+            }
+            else if(this.scoreObjects[i].value == 3) {
                 ctx.fillStyle = "green";
+            }
             else
                 ctx.fillStyle = "cyan";
                 
+            ctx.shadowColor = "#E7FFFD";
+            ctx.shadowBlur = this.currentScoreBlur;
             //console.dir(this.scoreObjects[i].left()+ "," + this.scoreObjects[i].top() + "," + this.scoreWidth + "," + this.scoreHeight);
-            ctx.fillRect(this.scoreObjects[i].left(), this.scoreObjects[i].top(), this.scoreWidth, this.scoreHeight);
+            ctx.beginPath();
+            ctx.arc(this.scoreObjects[i].x, this.scoreObjects[i].y, this.scoreWidth / 2, 0, 2 * Math.PI);
+            ctx.fill();
+            //ctx.fillRect(this.scoreObjects[i].left(), this.scoreObjects[i].top(), this.scoreWidth, this.scoreHeight);
         }
         ctx.restore();
     },
@@ -923,8 +1056,8 @@ app.main = {
             while(!validScore) {
                 validScore = true;
                 //Get a new random score value
-                var scoreX = getRandomInt(1,3);
-                var scoreY = getRandomInt(1,3);
+                var scoreX = getRandomInt(1,5);
+                var scoreY = getRandomInt(1,5);
                 //Check all current terrain score location
                 for (var score of lastTerrainObj.score) {
                     if(score.x == scoreX && score.y == scoreY)
@@ -972,8 +1105,10 @@ app.main = {
             if(!keys.down[keys.KEYBOARD.KEY_P] && !keys.down[keys.KEYBOARD.KEY_ESC])
                 this.pausable = true;
             
-            if(keys.down[keys.KEYBOARD.KEY_T])
+            if(keys.down[keys.KEYBOARD.KEY_T]) {
                 this.yakPositionY -= 50;
+                this.currentPlayerState = this.GAME_STATE.JUMPING;
+            }
             
             if(this.currentPlayerState == this.PLAYER_STATE.RUNNING) {
                 //If player presses space while running, they will jump
@@ -1006,11 +1141,11 @@ app.main = {
     scoreObject: function(row, col) {
         var terrainLeft = app.main.terrainObjects[app.main.terrainObjects.length - 1].left() + 50;
         var scoreRangeX = app.main.terrainObjects[app.main.terrainObjects.length - 1].width - 100;
-        this.x = terrainLeft + (col / 3 * scoreRangeX);
+        this.x = terrainLeft + (col / 5 * scoreRangeX);
         
         var terrainTop = app.main.terrainObjects[app.main.terrainObjects.length - 1].top();
         var scoreRangeY = 150;
-        this.y = terrainTop - (row / 3 * scoreRangeY);
+        this.y = terrainTop - (row / 5 * scoreRangeY);
         
         this.left = function() {
             return this.x - (app.main.scoreWidth / 2);
@@ -1065,6 +1200,21 @@ app.main = {
     },
     
     updateScore: function(dt) {
+        //Should increase/decrease the blur once every 1/6 sec
+        if(this.blurIncTimer % 10 == 0) {
+            this.blurIncTimer = 0;
+            if(this.increaseBlur) {
+                this.currentScoreBlur++;
+            } else {
+                this.currentScoreBlur--;
+            }
+        }
+        
+        this.blurIncTimer++;
+        
+        if(this.currentScoreBlur <= 0 || this.currentScoreBlur >= 25) 
+            this.increaseBlur = !this.increaseBlur;
+        
         for(var i = 0; i < this.scoreObjects.length; i++) {
 	        
 	        //Move score object
@@ -1085,7 +1235,7 @@ app.main = {
 	        this.yakPositionY + (this.yakPlayerHeight / 2) > this.scoreObjects[i].y
 	        ) {
 	            //Play Sound
-	            app.audio.playEffect(0);
+	            app.audio.playEffect(this.scoreObjects[i].value);
 	            //Increment Score Accordingly
 	            this.currentScore += this.scoreObjects[i].value;
 	            //Remove Score Object from the score Array, but not the terraain score array
@@ -1112,10 +1262,7 @@ app.main = {
     
     updateYak: function(dt) {
         //Update Yak Player State
-        if(this.currentPlayerState == this.PLAYER_STATE.JUMPING && this.yakYAccel <= 0) {
-            this.currentPlayerState = this.PLAYER_STATE.FALLING;
-            this.yakSpriteIndex = 15;
-        }
+       
         
         //Increase sprite index every tick-per-frame unit
         if(this.yakTickCounter % this.yakTPF == 0)
@@ -1133,14 +1280,21 @@ app.main = {
             }
         }
         
+        //Increment Tick Counter
+        this.yakTickCounter++;
+        
         //Reset running loop
         if(this.yakSpriteIndex > 7 && this.PLAYER_STATE == this.PLAYER_STATE.RUNNING) {
             this.yakSpriteIndex = 0;
             this.yakTickCounter = 0;
         }
         
-        //Increment Tick Counter
-        this.yakTickCounter++;
+         if(this.currentPlayerState == this.PLAYER_STATE.JUMPING) {
+            this.yakTickCounter = 0;
+            this.yakSpriteIndex = 15;
+        }
+        
+        
         
         //Add Acceleration to speed
         //Acceleration is negative, making speed negative
@@ -1187,7 +1341,6 @@ app.main = {
                 else if(yakTop < this.terrainObjects[i].bottom() &&
                 yakBot > this.terrainObjects[i].bottom()) {
                     this.yakPositionY = this.terrainObjects[i].bottom() + (this.yakPlayerHeight / 2); //Set outside of box with 2px buffer
-                    this.currentPlayerState = this.PLAYER_STATE.FALLING;
                 }
                 // If no vertical collsion occurs, set the y value
                 else

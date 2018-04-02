@@ -10,3 +10,15 @@ window.onload = function(){
 	app.main.audio = app.audio;
 	app.main.init();
 }
+
+window.onblur = function(){
+	if(app.main.currentGameState == app.main.GAME_STATE.INGAME) {
+		app.main.currentGameState = app.main.GAME_STATE.PAUSED;
+	}
+};
+
+window.onfocus = function(){
+	if(app.main.currentGameState == app.main.GAME_STATE.PAUSED) {
+		app.main.currentGameState = app.main.GAME_STATE.INGAME;
+	}
+};
