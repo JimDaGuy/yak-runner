@@ -11,7 +11,7 @@ app.audio = (function(){
     var effectsMuted = false;
     var musicMuted = false;
     
-    //Functions
+    //Initialize backgroundAudio element
     function init(){
         backgroundAudio = document.querySelector("#backgroundAudio");
 		backgroundAudio.volume=0.10;
@@ -20,6 +20,7 @@ app.audio = (function(){
 		    backgroundAudio.play();
     }
     
+    //Set the background audio with a given path and volume
     function setBackgroundAudio(bgPath, vol){
         backgroundAudio.src = bgPath;
         backgroundAudio.volume = vol;
@@ -28,10 +29,12 @@ app.audio = (function(){
             backgroundAudio.play();
     }
     
+    //Change the volume of the background audio
     function changeVolume(vol) {
         backgroundAudio.volume = vol;
     }
     
+    //Play an affect with the given audio name
     function playEffect(effectNum){
         var effectSound = document.createElement('audio');
         effectSound.volume = 0.3;
@@ -41,6 +44,7 @@ app.audio = (function(){
 		    effectSound.play();
     }
     
+    //Toggles the background music
     function toggleBG() {
         musicMuted = !musicMuted;
         if(musicMuted)
@@ -53,6 +57,7 @@ app.audio = (function(){
         }
     }
     
+    //Toggles the SFX
     function toggleSFX() {
         effectsMuted = !effectsMuted;
     }

@@ -47,7 +47,7 @@ app.main = {
        JUMPING: 1,
     }),
     
-    //Menu Variables
+    //UI Variables
     menuYak: undefined,
     menuGroundHeight: 400,
     
@@ -112,16 +112,20 @@ app.main = {
     yakTickCounter: 1,
     yakSpriteIndex: 0,
     
-    yakInitX: 250,
-    yakInitY: 500,
-    yakPositionX: 250,
-    yakPositionY: 500,
+    //Yak position/velocity variables
+    yakInitX: 50,
+    yakInitY: 550,
+    yakPositionX: 50,
+    yakPositionY: 550,
     yakPlayerCurrentSprite: undefined,
     yakXSpeed: 250,  //Ground will move left at 250 pixels per second
     yakYSpeed: 0,
-    yakYSpeed: 50,
-    yakYAccel: -150,
+    minYSpeed: -450,
+    yakYAccel: -450,
+    yakJumpSpeed: 450,
+    yakSmallJumpSpeed: 250,
     
+    //Other game variables
     terrainObjects: [],
     scoreObjects: [],
     scorePerTerrain: 4,
@@ -132,6 +136,11 @@ app.main = {
     blurIncTimer: 0,
     botLevelHeight: 25,
     topLevelHeight: 225,
+    deadYakX: -750,
+    
+    gradientColor: "#FAEC05",
+    gradientSpeed: 50,
+    gradientLocation: 0,
     
     //Used to implement single key-press on pausing
     pausable: true, //When true, you can pause the game
@@ -139,7 +148,7 @@ app.main = {
     
     currentScore: 0,
     
-    //Methods
+    //Called at the beginning of thto set canvas, canvas context, set the initial game state, and preload images
     init: function() {
         //Initialize canvas properties
         this.canvas = document.querySelector('canvas');
@@ -173,6 +182,7 @@ app.main = {
     	}
     },
     
+    //Call multiple helper functions once per frame depending on the current game state
     update: function() {
         //Schedule call to update
         this.animationID = requestAnimationFrame(this.update.bind(this));
@@ -319,9 +329,33 @@ app.main = {
             this.ctx.shadowColor = "#6FC374";
             this.ctx.shadowBlur = 10;
             this.ctx.font = "45pt 'Share Tech'";
-            this.ctx.fillText("For now, T to go up", this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .4);
-            this.ctx.fillText("Press P or ESC to Pause the game", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .6, this.CANVAS_WIDTH * .4);
+            this.ctx.fillText("Press [SPACE] to jump", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .2, this.CANVAS_WIDTH * .55);
+            this.ctx.fillText("Press [SPACE] + [SHIFT] to short jump", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .3, this.CANVAS_WIDTH * .55);
+            this.ctx.fillText("[P]/[ESC] to pause", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .4, this.CANVAS_WIDTH * .55);
+            this.ctx.fillText("Collect Green Orbs (1-3 Points)", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .55, this.CANVAS_WIDTH * .4);
+            this.ctx.fillText("1", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .65, this.CANVAS_WIDTH * .4);
+            this.ctx.fillText("2", this.CANVAS_WIDTH * .55, this.CANVAS_HEIGHT * .65, this.CANVAS_WIDTH * .4);
+            this.ctx.fillText("3", this.CANVAS_WIDTH * .7, this.CANVAS_HEIGHT * .65, this.CANVAS_WIDTH * .4);
             this.ctx.fillText("Press ESC to return to the menu", this.CANVAS_WIDTH * .4, this.CANVAS_HEIGHT * .8, this.CANVAS_WIDTH * .4);
+            
+            this.ctx.shadowColor = "#E7FFFD";
+            this.ctx.shadowBlur = 15;
+            
+            this.ctx.fillStyle = "#2F432E";
+            this.ctx.beginPath();
+            this.ctx.arc( this.CANVAS_WIDTH * .475, this.CANVAS_HEIGHT * .7, 20, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = "#71BA6D";
+            this.ctx.beginPath();
+            this.ctx.arc( this.CANVAS_WIDTH * .625, this.CANVAS_HEIGHT * .7, 20, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = "#B9FAB5";
+            this.ctx.beginPath();
+            this.ctx.arc( this.CANVAS_WIDTH * .775, this.CANVAS_HEIGHT * .7, 20, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
             
             //Process Input
             this.processKeyboardInput();
@@ -447,7 +481,8 @@ app.main = {
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             
-            //this.ctx.drawImage( this.bgSand, 0, 0);
+            this.updateGradient(dt, this.gradientSpeed);
+            this.drawGradient(this.ctx);
             
             this.drawGameCurves(this.ctx);
             
@@ -455,10 +490,6 @@ app.main = {
             this.createParticles(dt);
             this.moveParticles(dt, 340);
             this.drawParticles(this.ctx);
-            
-            //Update Game Background and Draw it to the canvas
-            //this.updateGameBackground();
-            //this.drawGameBackground();
             
             //Update current terrain, generate terrain if more is needed, draw all terrain
             this.updateTerrain(dt);
@@ -491,7 +522,8 @@ app.main = {
             this.ctx.clearRect(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
-            this.ctx.drawImage( this.bgSand, 0, 0);
+            this.drawGradient(this.ctx);
+            this.drawGameCurves(this.ctx);
             this.drawParticles(this.ctx);
             this.drawTerrain(this.ctx);
             this.drawYak(this.ctx);
@@ -508,12 +540,14 @@ app.main = {
             this.drawPauseScreen(this.ctx);
         }
         
+        //Dead
         if(this.currentGameState == this.GAME_STATE.DEAD) {
             //Redraw Game Screen without updating
             this.ctx.clearRect(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
             this.ctx.fillStyle = this.skyColor;
             this.ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
-            this.ctx.drawImage( this.bgSand, 0, 0);
+            this.drawGradient(this.ctx);
+            this.drawGameCurves(this.ctx);
             //Keep drawing slow moving particles though
             this.createParticles(dt);
             this.moveParticles(dt, 40);
@@ -532,6 +566,7 @@ app.main = {
         
     },
     
+    //Returns the time passed since the last time this function has been called
     calculateDeltaTime: function(){
 		var now,fps;
 		now = performance.now(); 
@@ -541,6 +576,7 @@ app.main = {
 		return 1/fps;
 	},
 	
+	//Sets the game state to dead when the player falls off the screen
 	checkDead: function() {
 	    //If Yak Falls Offscreen, End Game
 	    if(this.yakPositionX + (this.yakPlayerWidth / 2) < 0 ||
@@ -552,6 +588,8 @@ app.main = {
 	    }
 	},
 	
+	//Creates particles based on the time passed and the particle creation rate
+	//Adds the created particles to the array of particles
 	createParticles: function(dt) {
 	    var timePerParticle = 1 / this.particleRate;
 	    //Check timer and max particles before creating a new particle
@@ -571,6 +609,7 @@ app.main = {
 	        this.particleTimer += dt;
 	},
 	
+	//Handles mouse clicks based on game state and mouse position
 	doMousedown: function(e) {
 
 		if(this.currentGameState == this.GAME_STATE.MENU) {
@@ -582,6 +621,8 @@ app.main = {
 		        //Reset any scores or level stats and generate initial level items
 		        this.setInitialTerrain();
 		        this.currentScore = 0;
+		        this.deadYakX = -750;
+		        this.gradientLocation = this.CANVAS_WIDTH + 150;
 		    }
 		    
 		    //Open Instructions screen
@@ -617,6 +658,8 @@ app.main = {
 		        this.particles = [];
 		        this.scoreObjects = [];
 		        this.setInitialTerrain();
+		        this.deadYakX = -750;
+		        this.gradientLocation = this.CANVAS_WIDTH + 150;
 	        }
 	        
 	        if(this.pauseQuitHovered) {
@@ -628,6 +671,8 @@ app.main = {
 		        this.terrainObjects = [];
 		        this.particles = [];
 		        this.scoreObjects = [];
+		        this.deadYakX = -750;
+		        this.gradientLocation = this.CANVAS_WIDTH + 150;
 	        }
 	    }
 	    
@@ -651,10 +696,12 @@ app.main = {
 		    this.terrainObjects = [];
 		    this.particles = [];
 		    this.scoreObjects = [];
+		    this.gradientLocation = this.CANVAS_WIDTH + 150;
 		}
 		    
 	},
 	
+	//Handles mouse movement to check for canvas button hovering depending on the game state
 	doMousemove: function(e) {
 	  var mouse = getMouse(e);
 	  var x = mouse.x;
@@ -762,6 +809,7 @@ app.main = {
 	  }
 	},
 	
+	//Iterates through the array of particles and moves them to the left
 	moveParticles: function(dt, particleSpeed) {
 	    for(var i = 0; i < this.particles.length; i++) {
 	        
@@ -777,6 +825,7 @@ app.main = {
 	    }
 	},
 	
+	//Iterates through the array of particles and draws them at their current location
 	drawParticles: function(ctx) {
 	    ctx.save();
 	    
@@ -793,6 +842,7 @@ app.main = {
 	    ctx.restore();
 	},
 	
+	//Draws death overlay over the current game and moves the yak image onto it
 	drawDeadScreen: function(ctx) {
 	    ctx.save();
 	    
@@ -802,18 +852,32 @@ app.main = {
         this.ctx.fillRect(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
         this.ctx.globalAlpha = 1;
         
-        //Draw Temporary Restart text for now, until we add buttons
-        ctx.font = "45px Lobster";
-        ctx.fillStyle = "yellow";
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "center";
+        //Draw Yak
+        if(this.deadYakX < -450)
+            this.deadYakX += 3;
         
-        ctx.fillText("Game Over! End Score: " + this.currentScore, this.CANVAS_WIDTH / 2, this.CANVAS_HEIGHT / 2, this.CANVAS_WIDTH * .6);
-        ctx.fillText("Click anywhere to return to the menu", this.CANVAS_WIDTH / 2, (this.CANVAS_HEIGHT / 2) + 100, this.CANVAS_WIDTH * .6)
+        ctx.drawImage( this.menuYak, this.deadYakX, 50);
+        
+        //Draws text for death screen
+        ctx.fillStyle = "yellow";
+        ctx.textBaseline = "top";
+        
+        ctx.font = "75px 'Share Tech'";
+        ctx.textAlign = "left";
+        ctx.fillText("Game Over!", 20, 20, this.CANVAS_WIDTH * .6);
+        
+        ctx.font = "75px 'Share Tech'";
+        ctx.textAlign = "right";
+        ctx.fillText("End Score| " + this.currentScore, this.CANVAS_WIDTH - 20, 20, this.CANVAS_WIDTH * .6);
+        
+        ctx.font = "60px 'Share Tech";
+        ctx.textAlign = "left";
+        ctx.fillText("Click anywhere to return to the menu", this.CANVAS_WIDTH * .3, this.CANVAS_HEIGHT - 100, this.CANVAS_WIDTH * .6)
         
         ctx.restore();
 	},
 	
+	//Draws mountain-looking curves to the canvas
 	drawGameCurves: function(ctx) {
 	    ctx.save();
 	    
@@ -848,15 +912,43 @@ app.main = {
 	    
 	    ctx.restore();
 	},
+	
+	//Draws the sunny gradient to the canvas
+	drawGradient: function(ctx) {
+	    ctx.save();
+	    
+	    var gradient = ctx.createLinearGradient( this.CANVAS_WIDTH * -1.5, 0, this.CANVAS_WIDTH * 4, 0);
+	    gradient.addColorStop(0, this.skyColor);
+	    
+	    var gradLoc = this.gradientLocation / this.CANVAS_WIDTH;
+	    if(gradLoc <= 0)
+	        gradient.addColorStop(0, this.gradientColor);
+	    else if(gradLoc >= 1)
+	        gradient.addColorStop(1, this.gradientColor);
+	    else
+	        gradient.addColorStop( gradLoc, this.gradientColor);
+	       
+	    
+	    gradient.addColorStop(1, this.skyColor);
+	    
+	    ctx.fillStyle = gradient;
+	    ctx.globalAlpha = .4;
+	    ctx.fillRect( 0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT);
+	    
+	    ctx.restore();
+	},
     
+    //Draws the hud to the canvas
     drawHUD: function(ctx) {
         ctx.save();
         
-        ctx.font = "20px Arial";
-        ctx.fillStyle = "white";
         ctx.textBaseline = "top";
-        
         ctx.textAlign = "end";
+    	ctx.fillStyle = "#C0FEC4";
+        ctx.shadowColor = "#6FC374";
+        ctx.shadowBlur = 10;
+    	ctx.font = "35px 'Lobster'";
+        
         ctx.fillText("Score: " + this.currentScore, this.CANVAS_WIDTH - 20, 20);
         
         //ctx.textAlign = "start";
@@ -865,6 +957,7 @@ app.main = {
         ctx.restore();
     },
     
+    //Iterates through the terrain objects array and draws them to the canvas
     drawTerrain: function(ctx) {
         ctx.save();
         
@@ -882,6 +975,7 @@ app.main = {
         ctx.restore();
     },
     
+    //Draws menu screen background, buttons, yak, and text
     drawMenuScreen: function(ctx, e) {
         ctx.save();
         
@@ -985,6 +1079,7 @@ app.main = {
         ctx.restore();
     },
     
+    //Draws paused game screen, pause overlay, and pause buttons 
     drawPauseScreen: function(ctx, e) {
         ctx.save();
             
@@ -1052,6 +1147,7 @@ app.main = {
         ctx.restore();
     },
     
+    //Iterates through score object array and draws them to the canvas
     drawScore: function(ctx) {
         ctx.save();
         
@@ -1070,7 +1166,7 @@ app.main = {
                 
             ctx.shadowColor = "#E7FFFD";
             ctx.shadowBlur = this.currentScoreBlur;
-            //console.dir(this.scoreObjects[i].left()+ "," + this.scoreObjects[i].top() + "," + this.scoreWidth + "," + this.scoreHeight);
+            
             ctx.beginPath();
             ctx.arc(this.scoreObjects[i].x, this.scoreObjects[i].y, this.scoreWidth / 2, 0, 2 * Math.PI);
             ctx.fill();
@@ -1079,6 +1175,7 @@ app.main = {
         ctx.restore();
     },
     
+    //Draw the yak player to the canvas with the current sprite
     drawYak: function(ctx) {
         ctx.save();
         var xOffset, yOffset;
@@ -1091,15 +1188,12 @@ app.main = {
             yOffset = 0;
         }
         
-        //console.dir(this.yakSpriteIndex);
-        //console.dir(xOffset + " , " + yOffset);
         ctx.drawImage(this.yakSheet,
         xOffset, yOffset, this.yakPlayerWidth, this.yakPlayerHeight,
         this.yakPositionX - (this.yakPlayerWidth / 2), 
         this.yakPositionY - (this.yakPlayerHeight / 2),
         this.yakPlayerWidth, this.yakPlayerHeight);
         
-        //console.dir(this.yakSpriteIndex);
         
         //We'll use a red box for now
         //ctx.fillStyle = "red";
@@ -1109,6 +1203,7 @@ app.main = {
         ctx.restore();
     },
     
+    //Checks if another terrain block needs to be generated and does so if neccesary
     generateTerrain: function() {
         var lastTerrain = this.terrainObjects[this.terrainObjects.length - 1];  
               
@@ -1128,12 +1223,13 @@ app.main = {
             }
           
             //Create terrain block
-            var newTerrainBlock = new this.terrainObject(newTerrainX, newTerrainY, newTerrainWidth, 50);
+            var newTerrainBlock = new this.TerrainObject(newTerrainX, newTerrainY, newTerrainWidth, 50);
             //Add block to the terrain objects array
             this.terrainObjects.push(newTerrainBlock);
         }
     },
     
+    //Checks if more score objects need to be generated and does so if neccesary
     generateScore: function() {
         //Last Terrain Object
         var lastTerrainObj = this.terrainObjects[this.terrainObjects.length - 1];
@@ -1153,13 +1249,14 @@ app.main = {
                     }
                 }
             //Create new score object at accepted location
-            var newScore = new this.scoreObject(scoreX, scoreY);
+            var newScore = new this.ScoreObject(scoreX, scoreY);
             //Add score object to current terrain object array and to the score array
             lastTerrainObj.score.push(newScore);
             this.scoreObjects.push(newScore);
       }  
     },
     
+    //Checks the current game state and processes the input accordingly
     processKeyboardInput: function() {
         
         //Exit Credits
@@ -1182,6 +1279,7 @@ app.main = {
             
         //In-Game Key Controls
         if(this.currentGameState == this.GAME_STATE.INGAME) {
+            //Pausing
             if(this.pausable && (keys.down[keys.KEYBOARD.KEY_P] || keys.down[keys.KEYBOARD.KEY_ESC]))
             {
                 this.currentGameState = this.GAME_STATE.PAUSED;
@@ -1189,23 +1287,30 @@ app.main = {
                 this.unpausable = false;
             }
             
-            //Let the player pause after letting go of the esc and p key
+            //Enable Pausing - After letting go of the esc and p key
             if(!keys.down[keys.KEYBOARD.KEY_P] && !keys.down[keys.KEYBOARD.KEY_ESC])
                 this.pausable = true;
             
-            if(keys.down[keys.KEYBOARD.KEY_T]) {
-                this.yakPositionY -= 50;
-                this.currentPlayerState = this.GAME_STATE.JUMPING;
-            }
-            
+            //Jumping
             if(this.currentPlayerState == this.PLAYER_STATE.RUNNING) {
                 //If player presses space while running, they will jump
-                if(keys.down[keys.KEYBOARD.KEY_SPACE]) {
+                if(keys.down[keys.KEYBOARD.KEY_SPACE] && keys.down[keys.KEYBOARD.KEY_SHIFT]) {
                     //Set player state to jumping
                     this.currentPlayerState = this.PLAYER_STATE.JUMPING;
                     //Set jumping frame
-                    this.yakSpriteIndex = 8;
+                    this.yakSpriteIndex = 15;
                     this.yakTickCounter = 0;
+                    //Set new y velocity
+                    this.yakYSpeed = this.yakSmallJumpSpeed;
+                }
+                else if(keys.down[keys.KEYBOARD.KEY_SPACE]) {
+                    //Set player state to jumping
+                    this.currentPlayerState = this.PLAYER_STATE.JUMPING;
+                    //Set jumping frame
+                    this.yakSpriteIndex = 15;
+                    this.yakTickCounter = 0;
+                    //Set new y velocity
+                    this.yakYSpeed = this.yakJumpSpeed;
                 }
             }
         }
@@ -1226,7 +1331,8 @@ app.main = {
         
     },
     
-    scoreObject: function(row, col) {
+    //Function constructor used to create score objects
+    ScoreObject: function(row, col) {
         var terrainLeft = app.main.terrainObjects[app.main.terrainObjects.length - 1].left() + 50;
         var scoreRangeX = app.main.terrainObjects[app.main.terrainObjects.length - 1].width - 100;
         this.x = terrainLeft + (col / 5 * scoreRangeX);
@@ -1251,11 +1357,12 @@ app.main = {
         this.value = getRandomInt(1,3);
     },
     
+    //Creates the initial terrain objects and adds the to the terrain object array
     setInitialTerrain: function() {
         //Create initial terrain objects
-        var terr1 = new this.terrainObject(200, this.CANVAS_HEIGHT - this.botLevelHeight, 400, 50)
-        var terr2 = new this.terrainObject(620, this.CANVAS_HEIGHT - 125, 300, 50);
-        var terr3 = new this.terrainObject(1025, this.CANVAS_HEIGHT - this.topLevelHeight, 350, 50);
+        var terr1 = new this.TerrainObject(200, this.CANVAS_HEIGHT - this.botLevelHeight, 400, 50)
+        var terr2 = new this.TerrainObject(620, this.CANVAS_HEIGHT - 125, 300, 50);
+        var terr3 = new this.TerrainObject(1025, this.CANVAS_HEIGHT - this.topLevelHeight, 350, 50);
         
         //Add terrain objects to their array
         this.terrainObjects.push(terr1);
@@ -1263,8 +1370,8 @@ app.main = {
         this.terrainObjects.push(terr3);
     },
     
-    //Object Contructor for Terrain Objects
-    terrainObject: function(xpos, ypos, width, height) {
+    //Function constructor used to create terrain objects
+    TerrainObject: function(xpos, ypos, width, height) {
         //Position, Width, and Height
         this.xPos = xpos;
         this.yPos = ypos;
@@ -1287,6 +1394,15 @@ app.main = {
         this.score = [];
     },
     
+    //Moves the gradient based on the gradient speed and delta time
+    updateGradient: function(dt, gradientSpeed) {
+        this.gradientLocation -= gradientSpeed * dt;
+        
+        if(this.gradientLocation <= -100)
+            this.gradientLocation = this.CANVAS_WIDTH + 150;
+    },
+    
+    //Iterates through the score object array and moves them based on the terrain speed and delta time
     updateScore: function(dt) {
         //Should increase/decrease the blur once every 1/6 sec
         if(this.blurIncTimer % 10 == 0) {
@@ -1333,6 +1449,7 @@ app.main = {
 	    }
     },
     
+    //Iterates through the terrain object array and moves them based on the terrain speed and delta time
     updateTerrain: function(dt) {
         for(var i = 0; i < this.terrainObjects.length; i++) {
 	        
@@ -1348,10 +1465,8 @@ app.main = {
 	    }
     },
     
+    //Updates Yak position, speed, and current sprite
     updateYak: function(dt) {
-        //Update Yak Player State
-       
-        
         //Increase sprite index every tick-per-frame unit
         if(this.yakTickCounter % this.yakTPF == 0)
             this.yakSpriteIndex++;
@@ -1388,16 +1503,17 @@ app.main = {
         //Acceleration is negative, making speed negative
         this.yakYSpeed += (this.yakYAccel * dt);
         
-        if(this.yakYSpeed <= -50)
-            this.yakYSpeed = -50;
+        
+        if(this.yakYSpeed <= this.minYSpeed)
+            this.yakYSpeed = this.minYSpeed;
         
         //Set potential new x and y coordinates for the yak
-        var potentialX = this.yakPositionX;
+        
         var potentialY = this.yakPositionY - (this.yakYSpeed * dt); //Speed is negative so we need to subtract it
         var yakTop = potentialY - (this.yakPlayerHeight / 2);
         var yakBot = potentialY + (this.yakPlayerHeight / 2);
-        var yakLeft = potentialX - (this.yakPlayerWidth / 2);
-        var yakRight = potentialX + (this.yakPlayerWidth / 2);
+        var yakLeft = this.yakPositionX - (this.yakPlayerWidth / 2);
+        var yakRight = this.yakPositionX + (this.yakPlayerWidth / 2);
         
         //Check each terrain block for collision
         for(var i = 0; i < this.terrainObjects.length; i++) {
@@ -1408,11 +1524,27 @@ app.main = {
             (yakTop < this.terrainObjects[i].bottom() && yakBot > this.terrainObjects[i].bottom()))
             )
             {
-                this.yakPositionX = this.terrainObjects[i].left() - (this.yakPlayerWidth / 2);
+                this.yakPositionX = this.terrainObjects[i].left() - (this.yakPlayerWidth / 2) - (this.yakXSpeed * dt);
             }
-            else {
-                this.yakPositionX = potentialX;
+            
+            var potentialX = this.yakPositionX + (10 * dt);
+            var yakLeft = potentialX - (this.yakPlayerWidth / 2);
+            var yakRight = potentialX + (this.yakPlayerWidth / 2);
+            
+            if(potentialX <= this.yakInitX) {
+                if(yakRight > this.terrainObjects[i].left() &&
+                yakLeft < this.terrainObjects[i].left() &&
+                ((yakBot > this.terrainObjects[i].top() && yakTop < this.terrainObjects[i].top()) || 
+                (yakTop < this.terrainObjects[i].bottom() && yakBot > this.terrainObjects[i].bottom()))
+                ) {
+                    
+                }    
+                else
+                    this.yakPositionX = potentialX;
             }
+            
+            var yakLeft = this.yakPositionX - (this.yakPlayerWidth / 2);
+            var yakRight = this.yakPositionX + (this.yakPlayerWidth / 2);
             
             //Vertical Collision Checks
             if(yakRight > this.terrainObjects[i].left() &&
@@ -1428,11 +1560,13 @@ app.main = {
                 //Ceiling Collision
                 else if(yakTop < this.terrainObjects[i].bottom() &&
                 yakBot > this.terrainObjects[i].bottom()) {
+                    this.currentPlayerState = this.PLAYER_STATE.JUMPING;
                     this.yakPositionY = this.terrainObjects[i].bottom() + (this.yakPlayerHeight / 2); //Set outside of box with 2px buffer
                 }
                 // If no vertical collsion occurs, set the y value
-                else
+                else {
                     this.yakPositionY = potentialY;
+                }
             }
         }
     },

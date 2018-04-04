@@ -6,6 +6,7 @@
 var keys = {};
 
 keys.KEYBOARD = Object.freeze({
+    "KEY_SHIFT": 16,
     "KEY_ESC": 27,
    "KEY_SPACE": 32, 
    "KEY_P": 80,
